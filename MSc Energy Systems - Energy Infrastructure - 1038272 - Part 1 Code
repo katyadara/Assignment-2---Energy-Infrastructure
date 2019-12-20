@@ -1,0 +1,129 @@
+PYTHON CODE
+Candidate number: 1038272
+
+import pandas as pd
+import pandapower as pp
+import pandapower.networks as pn
+import pandapower.plotting
+from pandapower.plotting.plotly import pf_res_plotly
+from pandapower.plotting.plotly import simple_plotly
+
+# Importing the GBreducednetwork case
+net = pn.GBreducednetwork()
+pp.runpp(net)
+
+# Printing and plotting the case components
+print(net)
+simple_plotly(net)
+
+# Plotting the network's lines and loading percentage
+pf_res_plotly(net)
+
+L = len(net.res_line)
+p_load_sum = net.load.p_mw.sum()
+
+print ("There are " + str(L) + " lines in the network")
+print ("Total load in GBreducednetwork = " + str(p_load_sum) + " MW")
+
+# Displaying original line data of network
+initial_line = pd.DataFrame (net.res_line)
+
+# Determining the number of overloaded lines in the original network
+no_overloaded_lines = len (net.res_line [net.res_line.loading_percent > 100])
+
+# Calculating the original line power
+initial_line = pd.DataFrame (net.res_line)
+initial_line ["total_power"] = (initial_line ["p_from_mw"]**2 + initial_line ["q_from_mvar"]**2)**0.5
+
+# Calculating the voltage drop on each line
+initial_line = pd.DataFrame (net.res_line)
+initial_line ["voltage_drop"] = (initial_line ["vm_from_pu"] - initial_line ["vm_to_pu"])
+
+# Creating parameters for storing line information after removing lines individually
+index = []
+max_loading_percentage = []
+no_overload = []
+increase_no_overload = []
+
+# Creating parameters for errors
+div_index = []
+exp = []
+
+x = range (0,L)
+
+# Removing each line individually and simulating the network without it
+for line in x:
+    
+    pp.drop_lines (net, [line])
+    
+    try: 
+        pp.runpp(net)
+        
+        #finding the maximum loading percentage of all lines
+        loading_percentage = net.res_line ["loading_percent"]
+        maximum_loading_percentage = max (loading_percentage)
+        
+        if maximum_loading_percentage > 100:
+            # stating which line
+            index.append (line) 
+            # stating the maximum loading percentage
+            max_loading_percentage.append (maximum_loading_percentage) 
+            # stating the number of overloaded lines
+            no_overload.append (len (net.res_line [net.res_line.loading_percent >100]))
+            # stating the number of increase in overloaded lines
+            increase_no_overload.append (len (net.res_line [net.res_line.loading_percent >100]) - no_overloaded_lines)     
+
+    except:
+            print ("Error")
+            div_index.append (line)
+            exp.append ("Data does not converge")
+    net = pn.GBreducednetwork()
+    
+# Arranging data after removal of each line
+new_data = {"Maximum Loading Percentage": max_loading_percentage, "No. of Overloaded Lines": no_overload, "Increase in Overloaded Lines": increase_no_overload}
+df = pd.DataFrame (new_data)
+
+# Sorting data by original total power
+print ("\nLines sorted by original total power")
+print (initial_line.sort_values (by = "total_power", ascending = False))
+
+# Sorting data by original voltage drop 
+print ("\nLines sorted by original voltage drop")
+print (initial_line.sort_values (by = "voltage_drop", ascending = False))
+
+print ("\n\033[1mInformation After Removal of Lines in Network \033[0m")
+
+# Sorting data by maximum loading percentage
+print ("\nLines sorted by maximum loading percentage")
+print (df.sort_values (by = "Maximum Loading Percentage", ascending = False))
+
+# Sorting data by the number of overloaded lines
+print ("\nLines sorted by number of overloaded lines")
+print (df.sort_values (by = "No. of Overloaded Lines", ascending = False))
+
+# Sorting data by the increase of overloaded lines due to removal
+print ("\nLines sorted by increase of overloaded lines")
+print (df. sort_values (by = "Increase in Overloaded Lines", ascending = False))
+
+print ("The most critical lines after pairwise comparison analysis are lines 80/81, 70, and 74")
+
+# Printing the network after removing line 80 or 81
+print ("\n\033[1mThe load distribution of the network after removing line 80 or 81\033[0m")
+net = pn.GBreducednetwork()
+pp.drop_lines (net, [80])
+pp.runpp (net)
+pf_res_plotly (net)
+
+# Printing the network after removing line 70
+print ("\n\033[1mThe load distribution of the network after removing line 70\033[0m")
+net = pn.GBreducednetwork()
+pp.drop_lines (net, [70])
+pp.runpp (net)
+pf_res_plotly (net)
+
+# Printing the network after removing line 74
+print ("\n\033[1mThe load distribution of the network after removing line 74\033[0m")
+net = pn.GBreducednetwork()
+pp.drop_lines (net, [74])
+pp.runpp (net)
+pf_res_plotly (net)
